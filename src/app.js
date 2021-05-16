@@ -1,38 +1,36 @@
-const express = require('express')
-const{MongoClient, ObjectID} = require('mongodb')
+const express = require('express');
+const appConfig = require('./config/config');
+const { mongoConnection } = require('./config/db');
+const cryptoController = require('./controllers/cryptoController');
+const { storeAllCrypto } = require('./services/cryptoService');
 
-const connectionURL = 'mongodb://127.0.0.1:27017'
-const database = 'gigo-binance'
+const cors = (req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  next();
+};
 
-// MongoClient.connect(connectionURL,{useNewUrlParser: true}, () => {
-//   if (error) {
-//     return console.log('Unable to connect to Database')
-//   }
-//   console.log('Connected Correctly!')
-// })
+const app = express();
+app.use(cors);
 
-const axios = require('axios');
-const url = 'https://api.binance.com/api/v3/ticker/24hr';
-const app = express()
 
-function loadPage() {
-  axios.get(url)
-  
-    .then(response => {
-      app.get('', (req, res) => {
-        res.send(response.data)
-        console.log(response.data)
-      })
+// ROUTES
+// Cryto endpoint
+app.use('/crypto', cryptoController);
+
+// Default landing endpoint
+app.use('/', (req, res, next) => res.status(200).json({ message: 'Welcome to GIGO BINANCE.' }));
+
+// connection to DB and running server
+(async () => {
+  try {
+    await mongoConnection();
+    app.listen(appConfig.port, () => {
+      console.log(`server is on port ${appConfig.port}`);
+      setInterval(storeAllCrypto, 30000)
     })
-
-    .catch (error => {
-      console.log(error);
-    })
-  
-  }    
-setTimeout(loadPage, 5000)
-
-
-app.listen(3000, () => {
-  console.log('server is on port 3000')
-})
+  } catch (error) {
+    console.log('Mongo connection error', error)
+  }
+})()
